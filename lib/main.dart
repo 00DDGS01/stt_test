@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 import 'package:permission_handler/permission_handler.dart';
+import 'package:fluttertoast/fluttertoast.dart'; // ✅ Toast 패키지 import
 
 void main() {
   runApp(const MyApp());
@@ -45,25 +46,50 @@ class _SpeechTestPageState extends State<SpeechTestPage> {
 
   void _startListening() async {
     bool available = await _speech.initialize(
-      onStatus: (status) => print('status: $status'),
-      onError: (error) => print('error: $error'),
+      onStatus: (status) {
+        print('status: $status');
+
+        if (status == "notListening" && _isListening) {
+          Future.delayed(Duration(milliseconds: 500), () {
+            _startListening();
+          });
+        }
+      },
+      onError: (error) {
+        print('error: $error');
+        if (_isListening) {
+          Future.delayed(Duration(seconds: 1), () {
+            _startListening();
+          });
+        }
+      },
     );
 
     if (available) {
       setState(() => _isListening = true);
       _speech.listen(
-      onResult: (result) {
-      setState(() {
-      _text = result.recognizedWords;
-    });
+        onResult: (result) {
+          String recognized = result.recognizedWords;
+          setState(() {
+            _text = recognized;
+          });
+          print("recognizedWords: $recognized");
 
-    // ✅ 여기에 로그 추가
-    print("recognizedWords: ${result.recognizedWords}");
-  },
-  listenFor: Duration(minutes: 5),
-  pauseFor: Duration(seconds: 30),
-  localeId: 'ko_KR',
-);
+          // ✅ 조건 검사
+          if (recognized.trim() == "잠깐 잠깐 잠깐") {
+            Fluttertoast.showToast(
+              msg: "녹음이 시작됩니다!",
+              toastLength: Toast.LENGTH_SHORT,
+              gravity: ToastGravity.BOTTOM,
+            );
+          }
+        },
+        listenFor: Duration(minutes: 5),
+        pauseFor: Duration(seconds: 30),
+        localeId: 'ko_KR',
+        cancelOnError: false,
+        partialResults: true,
+      );
     }
   }
 
